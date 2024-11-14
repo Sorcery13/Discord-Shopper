@@ -73,6 +73,79 @@ async def on_ready():
     # Start listening for terminal commands
     await listen_for_commands()
 
+
+
+
+
+# --- Add more items ---
+
+item_list = []
+
+# Get the directory of the current script
+script_dir = os.path.dirname(os.path.abspath(__file__))
+# Define the full path for items.json
+ITEMS_FILE = os.path.join(script_dir, 'items.json')
+
+# Load items from JSON file if it exists
+def load_items():
+    global item_list
+    if os.path.exists(ITEMS_FILE):
+        with open(ITEMS_FILE, 'r') as f:
+            item_list = json.load(f)
+
+# Save items to JSON file
+def save_items():
+    with open(ITEMS_FILE, 'w') as f:
+        json.dump(item_list, f)
+
+# Load items when the bot starts
+load_items()
+
+
+# I want to be able to send a link and then it takes the name of the item and adds it to a list with the price
+@bot.command(name='item')
+async def item_add(ctx, *, url=None):
+    if not url:
+        await ctx.send("Plese provide a URL")
+        return
+
+    # Use the url    
+    try:
+        driver = webdriver.Chrome(service=service, options=chrome_options)
+        driver.get(url)
+        price_of_item_element = WebDriverWait(driver, 10).until(
+            EC.presence_of_element_located((By.CLASS_NAME, "product-price__integer"))
+        )
+        name_of_item_element = WebDriverWait(driver, 10).until(
+            EC.presence_of_element_located((By.CSS_SELECTOR, 'h1.product-title.text-break'))
+        )
+        price_of_item = price_of_item_element.text
+        name_of_item = name_of_item_element.text
+        # Formatere dataen
+        item_data = {'name': name_of_item, 'price': price_of_item}
+        # Inserts data to the list
+        item_list.append(item_data)
+
+        # Save the updated list to JSON
+        save_items()
+
+        await ctx.send(f"Added Item: {name_of_item} with price: {price_of_item}")
+
+    except Exception as e:
+        await ctx.send("Failed to get data. Check the URL or try again later.")
+        print(f"Error: {e}")
+
+# --- Show the list command ---
+@bot.command(name='item_list')
+async def list_items(ctx):
+    if not item_list:
+        await ctx.send("The item list is currently empty")
+    else:
+        items = "\n".join([f"{item['name']} for {item['price']} DKK" for item in item_list])
+        await ctx.send(f"**Item List:**\n{items}")
+
+
+
 # --- Role Management Commands ---
 # Adds the role
 @bot.command(name='add')
